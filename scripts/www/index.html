@@ -1,11 +1,1254 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus</title>
-    </head>
-    <body>
-        PakePlus
-    </body>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>唯一解数独游戏</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: monospace;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        
+        h1 {
+            font-size: 2rem;
+            margin-bottom: 24px;
+            color: #f3f4f6;
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        select, button {
+            background-color: #1f2937;
+            color: #fff;
+            border: 1px solid #4b5563;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background-color: #374151;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-blue { background-color: #2563eb; }
+        .btn-blue:hover { background-color: #1d4ed8; }
+        
+        .btn-purple { background-color: #9333ea; }
+        .btn-purple:hover { background-color: #7e22ce; }
+        
+        .btn-green { background-color: #16a34a; }
+        .btn-green:hover { background-color: #15803d; }
+        
+        .btn-yellow { background-color: #ca8a04; }
+        .btn-yellow:hover { background-color: #a16207; }
+        
+        .btn-red { background-color: #dc2626; }
+        .btn-red:hover { background-color: #b91c1c; }
+        
+        .game-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 32px;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        
+        .main-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        #timer {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #facc15;
+            margin-bottom: 8px;
+        }
+        
+        #status {
+            height: 24px;
+            margin-bottom: 16px;
+            color: #d1d5db;
+        }
+        
+        .board-container {
+            position: relative;
+            margin-bottom: 16px;
+        }
+        
+        #sudokuBoard {
+            display: grid;
+            grid-template-columns: repeat(9, 48px);
+            grid-template-rows: repeat(9, 48px);
+            border: 2px solid #fff;
+        }
+        
+        .cell {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            border: 1px solid #374151;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-weight: bold;
+            font-family: monospace;
+            line-height: 1;
+            letter-spacing: normal;
+            font-variant-numeric: tabular-nums;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* 候选数字网格布局 */
+        .cell .candidates {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        
+        .cell .candidate {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
+            color: #fbbf24; /* 柔和黄色，不刺眼 */
+            font-weight: bold;
+        }
+        
+        .cell:nth-child(3n) {
+            border-right: 2px solid #fff;
+        }
+        
+        .cell:nth-child(9n) {
+            border-right: 1px solid #374151;
+        }
+        
+        .cell:nth-child(n+19):nth-child(-n+27),
+        .cell:nth-child(n+46):nth-child(-n+54) {
+            border-bottom: 2px solid #fff;
+        }
+        
+        /* 仅颜色不同，格式完全一致 */
+        .cell.initial {
+            color: #ffffff;
+        }
+        
+        .cell.user {
+            color: #6b9bd1;
+        }
+        
+        .cell.error {
+            color: #d16b6b;
+        }
+        
+        .cell.correct {
+            color: #6bd18b;
+        }
+        
+        .cell.selected {
+            background-color: #1e3a8a;
+        }
+        
+        .cell.highlight {
+            background-color: rgba(30, 64, 175, 0.3);
+        }
+        
+        .cell.same-number-highlight {
+            background-color: rgba(107, 209, 139, 0.2);
+        }
+        
+        #pauseOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+        
+        .pause-box {
+            background-color: #111827;
+            padding: 32px;
+            border-radius: 8px;
+            border: 2px solid #facc15;
+            text-align: center;
+        }
+        
+        .pause-box h2 {
+            font-size: 1.875rem;
+            font-weight: bold;
+            color: #facc15;
+            margin-bottom: 16px;
+        }
+        
+        .pause-box p {
+            color: #d1d5db;
+            margin-bottom: 24px;
+        }
+        
+        /* 数字输入区 */
+        .numpad-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .numpad-label {
+            text-align: center;
+            color: #9ca3af;
+            font-size: 0.875rem;
+            margin-bottom: 4px;
+        }
+        
+        #numpad {
+            display: grid;
+            grid-template-columns: repeat(9, 48px);
+            gap: 8px;
+            max-width: 480px;
+        }
+        
+        #candidateNumpad {
+            display: grid;
+            grid-template-columns: repeat(9, 48px);
+            gap: 8px;
+            max-width: 480px;
+        }
+        
+        .num-btn {
+            width: 48px;
+            height: 48px;
+            background-color: #1f2937;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            font-size: 1.25rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-weight: bold;
+            font-family: monospace;
+        }
+        
+        .num-btn:hover {
+            background-color: #374151;
+        }
+        
+        .candidate-btn {
+            width: 48px;
+            height: 48px;
+            background-color: #78350f; /* 深黄色背景，与确定按钮区分 */
+            color: #fbbf24; /* 柔和黄色文字 */
+            border: none;
+            border-radius: 4px;
+            font-size: 1.25rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            font-weight: bold;
+            font-family: monospace;
+        }
+        
+        .candidate-btn:hover {
+            background-color: #92400e;
+        }
+        
+        #leaderboard {
+            background-color: #111827;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid #374151;
+            min-width: 200px;
+        }
+        
+        .leaderboard-header {
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        
+        .leaderboard-header h2 {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #facc15;
+        }
+        
+        .leaderboard-content {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .rank-item {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .rank-item .rank {
+            font-weight: bold;
+        }
+        
+        .rank-item.top3 .rank {
+            color: #facc15;
+        }
+        
+        .instructions {
+            margin-top: 24px;
+            color: #6b7280;
+            font-size: 0.875rem;
+            max-width: 480px;
+            text-align: center;
+        }
+        
+        .instructions p {
+            margin-bottom: 4px;
+        }
+        
+        .instructions .highlight {
+            color: #facc15;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>唯一解数独游戏</h1>
+    
+    <div class="controls">
+        <div>
+            <label for="difficulty">难度：</label>
+            <select id="difficulty">
+                <option value="easy">简单 (45个提示)</option>
+                <option value="medium" selected>中等 (40个提示)</option>
+                <option value="hard">困难 (35个提示)</option>
+                <option value="expert">专家 (30个提示)</option>
+                <option value="master">大师 (25个提示)</option>
+                <option value="grandmaster">宗师 (20个提示)</option>
+            </select>
+        </div>
+        <button id="newGame" class="btn-blue">新游戏</button>
+        <button id="pauseGame" class="btn-purple">暂停</button>
+        <button id="checkAnswer" class="btn-green">检查答案</button>
+        <button id="hint" class="btn-yellow">提示</button>
+        <button id="clearErrors" class="btn-red">清除错误</button>
+        <button id="reset">重置</button>
+    </div>
+    
+    <div class="game-container">
+        <div class="main-area">
+            <div id="timer">00:00</div>
+            <div id="status"></div>
+            
+            <div class="board-container">
+                <div id="sudokuBoard"></div>
+                
+                <div id="pauseOverlay">
+                    <div class="pause-box">
+                        <h2>游戏暂停</h2>
+                        <p>点击"继续游戏"或按空格键恢复</p>
+                        <button id="resumeGame" class="btn-green">继续游戏</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="numpad-container">
+                <div class="numpad-label">确定数字（单击输入，覆盖所有候选）</div>
+                <div id="numpad">
+                    <button class="num-btn">1</button>
+                    <button class="num-btn">2</button>
+                    <button class="num-btn">3</button>
+                    <button class="num-btn">4</button>
+                    <button class="num-btn">5</button>
+                    <button class="num-btn">6</button>
+                    <button class="num-btn">7</button>
+                    <button class="num-btn">8</button>
+                    <button class="num-btn">9</button>
+                </div>
+                
+                <div class="numpad-label">候选数字（连续单击添加/移除，无需重复选格子）</div>
+                <div id="candidateNumpad">
+                    <button class="candidate-btn">1</button>
+                    <button class="candidate-btn">2</button>
+                    <button class="candidate-btn">3</button>
+                    <button class="candidate-btn">4</button>
+                    <button class="candidate-btn">5</button>
+                    <button class="candidate-btn">6</button>
+                    <button class="candidate-btn">7</button>
+                    <button class="candidate-btn">8</button>
+                    <button class="candidate-btn">9</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="leaderboard">
+            <div class="leaderboard-header">
+                <h2>最佳成绩</h2>
+            </div>
+            <div id="leaderboardContent" class="leaderboard-content"></div>
+        </div>
+    </div>
+    
+    <div class="instructions">
+        <p>使用说明：点击格子选中，然后点击数字或按键盘输入。按退格键删除数字。</p>
+        <p>使用方向键可以在格子之间移动。按空格键可以快速暂停/继续游戏。</p>
+        <p class="highlight">★ 点击上方数字输入确定数字，会覆盖所有候选数字。</p>
+        <p class="highlight">★ 点击下方黄色数字添加/移除候选数字，可连续点击无需重复选格子。</p>
+        <p class="highlight">★ 点击任意数字格子，棋盘上所有相同数字（包括候选）会自动高亮显示。</p>
+        <p class="highlight">★ 存在候选数字时无法完成游戏，需输入确定数字后才能通过检查。</p>
+        <p class="mt-1">本游戏所有题目均经过唯一解验证，绝不会出现双解误判问题。</p>
+    </div>
+
+    <script>
+        // DOM元素获取
+        const boardElement = document.getElementById('sudokuBoard');
+        const numpadElement = document.getElementById('numpad');
+        const candidateNumpadElement = document.getElementById('candidateNumpad');
+        const statusElement = document.getElementById('status');
+        const difficultySelect = document.getElementById('difficulty');
+        const newGameBtn = document.getElementById('newGame');
+        const pauseGameBtn = document.getElementById('pauseGame');
+        const resumeGameBtn = document.getElementById('resumeGame');
+        const checkAnswerBtn = document.getElementById('checkAnswer');
+        const hintBtn = document.getElementById('hint');
+        const clearErrorsBtn = document.getElementById('clearErrors');
+        const resetBtn = document.getElementById('reset');
+        const numButtons = document.querySelectorAll('.num-btn');
+        const candidateButtons = document.querySelectorAll('.candidate-btn');
+        const timerElement = document.getElementById('timer');
+        const leaderboardContent = document.getElementById('leaderboardContent');
+        const pauseOverlay = document.getElementById('pauseOverlay');
+
+        // 游戏状态变量
+        // 数据结构：每个格子是对象 { value: 0, candidates: [] }
+        // value: 0=空, 正数=确定数字
+        // candidates: 候选数字数组
+        let board = [];
+        let solution = [];
+        let initialBoard = [];
+        let selectedCell = null;
+        let gameCompleted = false;
+        let isPaused = false;
+        let timerInterval = null;
+        let startTime = 0;
+        let elapsedTime = 0;
+        let pausedTime = 0;
+        let gameStarted = false;
+
+        // 初始化数独棋盘
+        function initBoard() {
+            boardElement.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                for (let j = 0; j < 9; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    
+                    cell.addEventListener('click', function() {
+                        if (!gameStarted) {
+                            statusElement.textContent = '请先点击"新游戏"按钮开始游戏';
+                            return;
+                        }
+                        selectCell(this);
+                    });
+                    
+                    boardElement.appendChild(cell);
+                }
+            }
+        }
+
+        // 清除所有高亮
+        function clearAllHighlights() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach(cell => {
+                cell.classList.remove('selected', 'highlight', 'same-number-highlight');
+            });
+            selectedCell = null;
+        }
+
+        // 选择单元格（修复版：添加forceSelect参数）
+        function selectCell(cell, forceSelect = false) {
+            if (gameCompleted || isPaused || !gameStarted) return;
+            
+            // 如果点击的是已经选中的格子，且不是强制选择，则取消选择
+            if (selectedCell === cell && !forceSelect) {
+                clearAllHighlights();
+                return;
+            }
+            
+            // 清除之前的选中状态
+            clearAllHighlights();
+            
+            selectedCell = cell;
+            const row = parseInt(cell.dataset.row);
+            const col = parseInt(cell.dataset.col);
+            const currentCell = board[row][col];
+            
+            // 高亮选中单元格
+            cell.classList.add('selected');
+            
+            // 高亮同一行、列、宫格
+            const cells = document.querySelectorAll('.cell');
+            for (let i = 0; i < 9; i++) {
+                const rowCell = cells[row * 9 + i];
+                const colCell = cells[i * 9 + col];
+                if (rowCell !== cell) rowCell.classList.add('highlight');
+                if (colCell !== cell) colCell.classList.add('highlight');
+            }
+            
+            const boxRow = Math.floor(row / 3) * 3;
+            const boxCol = Math.floor(col / 3) * 3;
+            for (let i = boxRow; i < boxRow + 3; i++) {
+                for (let j = boxCol; j < boxCol + 3; j++) {
+                    const boxCell = cells[i * 9 + j];
+                    if (boxCell !== cell && !boxCell.classList.contains('selected')) {
+                        boxCell.classList.add('highlight');
+                    }
+                }
+            }
+            
+            // 高亮所有相同数字（包括确定数字和候选数字）
+            if (currentCell.value !== 0) {
+                const targetNumber = currentCell.value;
+                for (let i = 0; i < 9; i++) {
+                    for (let j = 0; j < 9; j++) {
+                        const cellData = board[i][j];
+                        if (cellData.value === targetNumber || cellData.candidates.includes(targetNumber)) {
+                            const sameCell = cells[i * 9 + j];
+                            if (!sameCell.classList.contains('selected')) {
+                                sameCell.classList.remove('highlight');
+                                sameCell.classList.add('same-number-highlight');
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 方向键移动
+        function moveSelection(direction) {
+            if (!selectedCell || gameCompleted || isPaused || !gameStarted) return;
+            
+            let row = parseInt(selectedCell.dataset.row);
+            let col = parseInt(selectedCell.dataset.col);
+            
+            switch (direction) {
+                case 'up':
+                    row = Math.max(0, row - 1);
+                    break;
+                case 'down':
+                    row = Math.min(8, row + 1);
+                    break;
+                case 'left':
+                    col = Math.max(0, col - 1);
+                    break;
+                case 'right':
+                    col = Math.min(8, col + 1);
+                    break;
+            }
+            
+            const cells = document.querySelectorAll('.cell');
+            const newCell = cells[row * 9 + col];
+            selectCell(newCell);
+        }
+
+        // 填充数字到单元格
+        function fillCell(cell, cellData, isInitial = false) {
+            cell.textContent = '';
+            cell.innerHTML = '';
+            cell.classList.remove('initial', 'user', 'error', 'correct');
+            
+            if (isInitial) {
+                cell.textContent = cellData.value;
+                cell.classList.add('initial');
+            } else if (cellData.value !== 0) {
+                // 显示确定数字
+                cell.textContent = cellData.value;
+                cell.classList.add('user');
+            } else if (cellData.candidates.length > 0) {
+                // 显示候选数字网格
+                const candidatesDiv = document.createElement('div');
+                candidatesDiv.className = 'candidates';
+                
+                for (let num = 1; num <= 9; num++) {
+                    const candidateSpan = document.createElement('span');
+                    candidateSpan.className = 'candidate';
+                    if (cellData.candidates.includes(num)) {
+                        candidateSpan.textContent = num;
+                    }
+                    candidatesDiv.appendChild(candidateSpan);
+                }
+                
+                cell.appendChild(candidatesDiv);
+            }
+        }
+
+        // 更新棋盘显示
+        function updateBoard() {
+            const cells = document.querySelectorAll('.cell');
+            for (let i = 0; i < 9; i++) {
+                for (let j = 0; j < 9; j++) {
+                    const cell = cells[i * 9 + j];
+                    const cellData = board[i][j];
+                    const isInitial = initialBoard[i][j] !== 0;
+                    fillCell(cell, cellData, isInitial);
+                }
+            }
+        }
+
+        // 检查数独是否有效（用于生成和求解）
+        function isValid(board, row, col, num) {
+            // 检查行
+            for (let i = 0; i < 9; i++) {
+                if (board[row][i] === num) return false;
+            }
+            
+            // 检查列
+            for (let i = 0; i < 9; i++) {
+                if (board[i][col] === num) return false;
+            }
+            
+            // 检查3x3宫格
+            const boxRow = Math.floor(row / 3) * 3;
+            const boxCol = Math.floor(col / 3) * 3;
+            for (let i = boxRow; i < boxRow + 3; i++) {
+                for (let j = boxCol; j < boxCol + 3; j++) {
+                    if (board[i][j] === num) return false;
+                }
+            }
+            
+            return true;
+        }
+
+        // 求解数独并返回解的数量
+        function solveAndCount(board, count = { value: 0 }) {
+            for (let row = 0; row < 9; row++) {
+                for (let col = 0; col < 9; col++) {
+                    if (board[row][col] === 0) {
+                        for (let num = 1; num <= 9; num++) {
+                            if (isValid(board, row, col, num)) {
+                                board[row][col] = num;
+                                solveAndCount(board, count);
+                                if (count.value > 1) return count.value; // 提前终止
+                                board[row][col] = 0;
+                            }
+                        }
+                        return count.value;
+                    }
+                }
+            }
+            count.value++;
+            return count.value;
+        }
+
+        // 生成完整的数独解
+        function generateSolution() {
+            const board = Array(9).fill().map(() => Array(9).fill(0));
+            
+            // 随机填充第一行
+            const nums = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+            for (let i = 0; i < 9; i++) {
+                const randomIndex = Math.floor(Math.random() * nums.length);
+                board[0][i] = nums.splice(randomIndex, 1)[0];
+            }
+            
+            // 求解得到完整数独
+            solveBoard(board);
+            return board;
+        }
+
+        // 求解数独（返回第一个解）
+        function solveBoard(board) {
+            for (let row = 0; row < 9; row++) {
+                for (let col = 0; col < 9; col++) {
+                    if (board[row][col] === 0) {
+                        for (let num = 1; num <= 9; num++) {
+                            if (isValid(board, row, col, num)) {
+                                board[row][col] = num;
+                                if (solveBoard(board)) {
+                                    return true;
+                                }
+                                board[row][col] = 0;
+                            }
+                        }
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        // 生成唯一解的数独题目（6档难度，每档差5个提示）
+        function generateUniqueSudoku(difficulty) {
+            const fullBoard = generateSolution();
+            const puzzle = fullBoard.map(row => [...row]);
+            
+            // 移除数字数量 = 81 - 提示数
+            const cellsToRemove = {
+                easy: 36,         // 45个提示
+                medium: 41,       // 40个提示（默认）
+                hard: 46,         // 35个提示
+                expert: 51,       // 30个提示
+                master: 56,       // 25个提示
+                grandmaster: 61   // 20个提示
+            }[difficulty];
+            
+            let removed = 0;
+            const positions = [];
+            for (let i = 0; i < 9; i++) {
+                for (let j = 0; j < 9; j++) {
+                    positions.push([i, j]);
+                }
+            }
+            
+            // 随机打乱位置
+            for (let i = positions.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [positions[i], positions[j]] = [positions[j], positions[i]];
+            }
+            
+            // 逐个移除数字，确保始终只有一个解
+            for (const [row, col] of positions) {
+                if (removed >= cellsToRemove) break;
+                
+                const temp = puzzle[row][col];
+                puzzle[row][col] = 0;
+                
+                // 检查是否仍然只有一个解
+                const testBoard = puzzle.map(r => [...r]);
+                if (solveAndCount(testBoard) === 1) {
+                    removed++;
+                } else {
+                    puzzle[row][col] = temp; // 恢复数字
+                }
+            }
+            
+            return { puzzle, solution: fullBoard };
+        }
+
+        // 格式化时间
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        // 开始计时
+        function startTimer() {
+            stopTimer();
+            startTime = Date.now();
+            elapsedTime = 0;
+            pausedTime = 0;
+            timerElement.textContent = '00:00';
+            
+            timerInterval = setInterval(() => {
+                if (!isPaused && gameStarted) {
+                    elapsedTime = Math.floor((Date.now() - startTime - pausedTime) / 1000);
+                    timerElement.textContent = formatTime(elapsedTime);
+                }
+            }, 1000);
+        }
+
+        // 停止计时
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        // 暂停游戏
+        function pauseGame() {
+            if (gameCompleted || isPaused || !gameStarted) return;
+            
+            isPaused = true;
+            
+            // 显示暂停遮罩
+            pauseOverlay.style.display = 'flex';
+            pauseGameBtn.textContent = '已暂停';
+            pauseGameBtn.disabled = true;
+            
+            statusElement.textContent = '游戏已暂停，点击"继续游戏"或按空格键恢复';
+        }
+
+        // 继续游戏
+        function resumeGame() {
+            if (!isPaused || !gameStarted) return;
+            
+            isPaused = false;
+            
+            // 计算暂停的总时长
+            pausedTime = Date.now() - startTime - elapsedTime * 1000;
+            
+            // 隐藏暂停遮罩
+            pauseOverlay.style.display = 'none';
+            pauseGameBtn.textContent = '暂停';
+            pauseGameBtn.disabled = false;
+            
+            statusElement.textContent = '游戏继续！';
+        }
+
+        // 从localStorage加载排名
+        function loadLeaderboard(difficulty) {
+            const data = localStorage.getItem(`sudoku_leaderboard_${difficulty}`);
+            return data ? JSON.parse(data) : [];
+        }
+
+        // 保存排名到localStorage（只保留前10条）
+        function saveLeaderboard(difficulty, leaderboard) {
+            leaderboard.sort((a, b) => a - b);
+            const top10 = leaderboard.slice(0, 10);
+            localStorage.setItem(`sudoku_leaderboard_${difficulty}`, JSON.stringify(top10));
+        }
+
+        // 添加新的时间记录
+        function addTimeRecord(difficulty, time) {
+            let leaderboard = loadLeaderboard(difficulty);
+            leaderboard.push(time);
+            saveLeaderboard(difficulty, leaderboard);
+            return leaderboard.indexOf(time) + 1; // 返回排名
+        }
+
+        // 显示排名表（固定显示前10条）
+        function displayLeaderboard(difficulty) {
+            const leaderboard = loadLeaderboard(difficulty);
+            leaderboardContent.innerHTML = '';
+            
+            if (leaderboard.length === 0) {
+                leaderboardContent.innerHTML = '<p style="text-align: center; color: #6b7280;">暂无记录</p>';
+                return;
+            }
+            
+            leaderboard.forEach((time, index) => {
+                const rankItem = document.createElement('div');
+                rankItem.className = 'rank-item' + (index < 3 ? ' top3' : '');
+                
+                const rankSpan = document.createElement('span');
+                rankSpan.className = 'rank';
+                rankSpan.textContent = `${index + 1}.`;
+                
+                const timeSpan = document.createElement('span');
+                timeSpan.textContent = formatTime(time);
+                
+                rankItem.appendChild(rankSpan);
+                rankItem.appendChild(timeSpan);
+                leaderboardContent.appendChild(rankItem);
+            });
+        }
+
+        // 开始新游戏（带确认）
+        function newGame() {
+            const confirmed = confirm('确定要开始新游戏吗？\n当前游戏进度将丢失。');
+            if (!confirmed) return;
+
+            const difficulty = difficultySelect.value;
+            const { puzzle, solution: sol } = generateUniqueSudoku(difficulty);
+            
+            // 初始化新的数据结构
+            board = puzzle.map(row => row.map(value => ({
+                value: value,
+                candidates: []
+            })));
+            solution = sol;
+            initialBoard = puzzle.map(row => [...row]);
+            gameCompleted = false;
+            isPaused = false;
+            gameStarted = true;
+            
+            // 确保不在暂停状态
+            pauseOverlay.style.display = 'none';
+            pauseGameBtn.textContent = '暂停';
+            pauseGameBtn.disabled = false;
+            
+            updateBoard();
+            statusElement.textContent = '新游戏开始！祝你好运！';
+            clearAllHighlights();
+            startTimer();
+            displayLeaderboard(difficulty);
+        }
+
+        // 检查答案
+        function checkAnswer() {
+            if (gameCompleted || isPaused || !gameStarted) {
+                statusElement.textContent = '请先开始游戏！';
+                return;
+            }
+            
+            let errors = 0;
+            let completed = true;
+            let hasCandidates = false;
+            const cells = document.querySelectorAll('.cell');
+            
+            // 先检查是否有候选数字
+            for (let i = 0; i < 9; i++) {
+                for (let j = 0; j < 9; j++) {
+                    if (board[i][j].candidates.length > 0) {
+                        hasCandidates = true;
+                        break;
+                    }
+                }
+                if (hasCandidates) break;
+            }
+            
+            if (hasCandidates) {
+                statusElement.textContent = '存在候选数字，请先输入确定数字！';
+                return;
+            }
+            
+            // 再检查错误
+            for (let i = 0; i < 9; i++) {
+                for (let j = 0; j < 9; j++) {
+                    const cell = cells[i * 9 + j];
+                    const userValue = board[i][j].value;
+                    const correctValue = solution[i][j];
+                    
+                    cell.classList.remove('error', 'correct');
+                    
+                    if (userValue === 0) {
+                        completed = false;
+                    } else if (userValue !== correctValue) {
+                        cell.classList.add('error');
+                        errors++;
+                    } else if (!initialBoard[i][j]) {
+                        cell.classList.add('correct');
+                    }
+                }
+            }
+            
+            if (errors > 0) {
+                statusElement.textContent = `发现 ${errors} 个错误，请修正！`;
+            } else if (completed) {
+                gameCompleted = true;
+                stopTimer();
+                
+                const difficulty = difficultySelect.value;
+                const rank = addTimeRecord(difficulty, elapsedTime);
+                displayLeaderboard(difficulty);
+                
+                statusElement.textContent = `🎉 恭喜你！成功完成数独！用时：${formatTime(elapsedTime)}，排名：第${rank}名！`;
+            } else {
+                statusElement.textContent = '目前没有错误，继续加油！';
+            }
+        }
+
+        // 提供提示
+        function giveHint() {
+            if (!gameStarted) {
+                statusElement.textContent = '请先开始游戏！';
+                return;
+            }
+            
+            if (!selectedCell || gameCompleted || isPaused) {
+                statusElement.textContent = '请先选择一个空格子！';
+                return;
+            }
+            
+            const row = parseInt(selectedCell.dataset.row);
+            const col = parseInt(selectedCell.dataset.col);
+            
+            if (initialBoard[row][col] !== 0) {
+                statusElement.textContent = '不能修改初始数字！';
+                return;
+            }
+            
+            // 填入确定数字，清空候选
+            board[row][col].value = solution[row][col];
+            board[row][col].candidates = [];
+            fillCell(selectedCell, board[row][col], false);
+            selectedCell.classList.add('correct');
+            statusElement.textContent = '已填入正确数字！';
+            // 重新高亮相同数字
+            selectCell(selectedCell, true);
+        }
+
+        // 清除错误
+        function clearErrors() {
+            if (gameCompleted || isPaused || !gameStarted) {
+                statusElement.textContent = '请先开始游戏！';
+                return;
+            }
+            
+            let cleared = 0;
+            const cells = document.querySelectorAll('.cell');
+            
+            for (let i = 0; i < 9; i++) {
+                for (let j = 0; j < 9; j++) {
+                    // 清除错误的确定数字和所有候选数字
+                    if ((board[i][j].value > 0 && board[i][j].value !== solution[i][j]) || 
+                        board[i][j].candidates.length > 0) {
+                        board[i][j].value = 0;
+                        board[i][j].candidates = [];
+                        const cell = cells[i * 9 + j];
+                        fillCell(cell, board[i][j], false);
+                        cell.classList.remove('error', 'user');
+                        cleared++;
+                    }
+                }
+            }
+            
+            if (cleared > 0) {
+                statusElement.textContent = `已清除 ${cleared} 个错误和候选数字！`;
+                // 清除后重新高亮
+                if (selectedCell) {
+                    selectCell(selectedCell, true);
+                }
+            } else {
+                statusElement.textContent = '没有发现错误或候选数字！';
+            }
+        }
+
+        // 重置当前游戏（带确认）
+        function resetGame() {
+            if (!gameStarted) {
+                statusElement.textContent = '请先开始游戏！';
+                return;
+            }
+            
+            if (gameCompleted) {
+                alert('游戏已完成，请开始新游戏。');
+                return;
+            }
+            
+            const confirmed = confirm('确定要重置当前游戏吗？\n所有输入将被清除，计时器将重新开始。');
+            if (!confirmed) return;
+            
+            // 重置为初始状态，清空所有候选
+            board = initialBoard.map(row => row.map(value => ({
+                value: value,
+                candidates: []
+            })));
+            updateBoard();
+            statusElement.textContent = '游戏已重置！';
+            clearAllHighlights();
+            startTimer();
+        }
+
+        // 处理确定数字输入（行为保持不变）
+        function handleNumberInput(num) {
+            if (!selectedCell || gameCompleted || isPaused || !gameStarted) return;
+            
+            const row = parseInt(selectedCell.dataset.row);
+            const col = parseInt(selectedCell.dataset.col);
+            
+            if (initialBoard[row][col] !== 0) {
+                statusElement.textContent = '不能修改初始数字！';
+                return;
+            }
+            
+            // 输入确定数字，清空所有候选
+            board[row][col].value = num;
+            board[row][col].candidates = [];
+            
+            // 更新显示
+            selectedCell.classList.remove('user', 'error', 'correct');
+            fillCell(selectedCell, board[row][col], false);
+            selectedCell.classList.add('user');
+            
+            // 重新高亮相同数字
+            selectCell(selectedCell, true);
+        }
+
+        // 处理候选数字输入（彻底修复版）
+        function handleCandidateInput(num) {
+            if (!selectedCell || gameCompleted || isPaused || !gameStarted) return;
+            
+            const row = parseInt(selectedCell.dataset.row);
+            const col = parseInt(selectedCell.dataset.col);
+            
+            if (initialBoard[row][col] !== 0) {
+                statusElement.textContent = '不能修改初始数字！';
+                return;
+            }
+            
+            // 如果有确定数字，先清除
+            if (board[row][col].value !== 0) {
+                board[row][col].value = 0;
+            }
+            
+            // 切换候选数字：存在则移除，不存在则添加
+            const index = board[row][col].candidates.indexOf(num);
+            if (index > -1) {
+                board[row][col].candidates.splice(index, 1);
+            } else {
+                board[row][col].candidates.push(num);
+                // 保持候选数字排序
+                board[row][col].candidates.sort((a, b) => a - b);
+            }
+            
+            // 更新显示
+            selectedCell.classList.remove('user', 'error', 'correct');
+            fillCell(selectedCell, board[row][col], false);
+            
+            // 关键：使用forceSelect=true强制保持选中状态
+            selectCell(selectedCell, true);
+        }
+
+        // 处理删除
+        function handleDelete() {
+            if (!selectedCell || gameCompleted || isPaused || !gameStarted) return;
+            
+            const row = parseInt(selectedCell.dataset.row);
+            const col = parseInt(selectedCell.dataset.col);
+            
+            if (initialBoard[row][col] !== 0) {
+                statusElement.textContent = '不能删除初始数字！';
+                return;
+            }
+            
+            // 优先删除确定数字，没有确定数字则清空候选
+            if (board[row][col].value !== 0) {
+                board[row][col].value = 0;
+            } else {
+                board[row][col].candidates = [];
+            }
+            
+            fillCell(selectedCell, board[row][col], false);
+            selectedCell.classList.remove('user', 'error', 'correct');
+            
+            // 重新高亮
+            selectCell(selectedCell, true);
+        }
+
+        // 事件监听
+        newGameBtn.addEventListener('click', newGame);
+        pauseGameBtn.addEventListener('click', pauseGame);
+        resumeGameBtn.addEventListener('click', resumeGame);
+        checkAnswerBtn.addEventListener('click', checkAnswer);
+        hintBtn.addEventListener('click', giveHint);
+        clearErrorsBtn.addEventListener('click', clearErrors);
+        resetBtn.addEventListener('click', resetGame);
+
+        // 确定数字按钮事件（行为保持不变）
+        numButtons.forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (!gameStarted) {
+                    statusElement.textContent = '请先点击"新游戏"按钮开始游戏';
+                    return;
+                }
+                handleNumberInput(parseInt(this.textContent));
+            });
+        });
+
+        // 候选数字按钮事件（彻底修复版）
+        candidateButtons.forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation(); // 阻止事件冒泡，防止全局点击事件干扰
+                if (!gameStarted) {
+                    statusElement.textContent = '请先点击"新游戏"按钮开始游戏';
+                    return;
+                }
+                handleCandidateInput(parseInt(this.textContent));
+            });
+        });
+
+        // 键盘支持（行为保持不变）
+        document.addEventListener('keydown', function(e) {
+            // 空格键暂停/继续
+            if (e.key === ' ') {
+                e.preventDefault();
+                if (!gameStarted) {
+                    statusElement.textContent = '请先开始游戏！';
+                    return;
+                }
+                if (isPaused) {
+                    resumeGame();
+                } else {
+                    pauseGame();
+                }
+                return;
+            }
+            
+            if (!gameStarted) {
+                statusElement.textContent = '请先点击"新游戏"按钮开始游戏';
+                return;
+            }
+            
+            // 数字键处理：输入确定数字
+            if (e.key >= '1' && e.key <= '9') {
+                e.preventDefault();
+                if (e.repeat) return;
+                handleNumberInput(parseInt(e.key));
+                return;
+            }
+            
+            if (e.key === 'Backspace' || e.key === 'Delete') {
+                e.preventDefault();
+                handleDelete();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                moveSelection('up');
+            } else if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                moveSelection('down');
+            } else if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                moveSelection('left');
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                moveSelection('right');
+            }
+        });
+
+        // 难度切换事件
+        difficultySelect.addEventListener('change', function() {
+            displayLeaderboard(this.value);
+        });
+
+        // 全局点击事件：点击空白处清除选中
+        document.addEventListener('click', function(e) {
+            if (!boardElement.contains(e.target) && 
+                !numpadElement.contains(e.target) && 
+                !candidateNumpadElement.contains(e.target) &&
+                e.target.tagName !== 'BUTTON' && 
+                e.target.tagName !== 'SELECT' &&
+                !pauseOverlay.contains(e.target)) {
+                clearAllHighlights();
+            }
+        });
+
+        // 初始化游戏（不自动开始）
+        initBoard();
+        statusElement.textContent = '点击"新游戏"按钮开始游戏';
+        displayLeaderboard(difficultySelect.value);
+    </script>
+</body>
 </html>
