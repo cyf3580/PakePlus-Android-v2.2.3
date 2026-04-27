@@ -859,14 +859,14 @@
             return { puzzle, solution: fullBoard };
         }
 
-        // 格式化时间
+        // 格式化时间（完整保留）
         function formatTime(seconds) {
             const mins = Math.floor(seconds / 60);
             const secs = seconds % 60;
             return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         }
 
-        // 开始计时
+        // 开始计时（完整保留）
         function startTimer() {
             stopTimer();
             startTime = Date.now();
@@ -882,7 +882,7 @@
             }, 1000);
         }
 
-        // 停止计时
+        // 停止计时（完整保留）
         function stopTimer() {
             if (timerInterval) {
                 clearInterval(timerInterval);
@@ -890,7 +890,7 @@
             }
         }
 
-        // 暂停游戏
+        // 暂停游戏（完整保留暂停计时逻辑）
         function pauseGame() {
             if (gameCompleted || isPaused || !gameStarted) return;
             isPaused = true;
@@ -900,7 +900,7 @@
             statusElement.textContent = '游戏已暂停';
         }
 
-        // 继续游戏
+        // 继续游戏（完整保留暂停时间计算）
         function resumeGame() {
             if (!isPaused || !gameStarted) return;
             isPaused = false;
@@ -911,20 +911,20 @@
             statusElement.textContent = '游戏继续！';
         }
 
-        // 从localStorage加载排名
+        // 从localStorage加载排名（完整保留时间排名）
         function loadLeaderboard(difficulty) {
             const data = localStorage.getItem(`sudoku_leaderboard_${difficulty}`);
             return data ? JSON.parse(data) : [];
         }
 
-        // 保存排名到localStorage
+        // 保存排名到localStorage（完整保留时间排序）
         function saveLeaderboard(difficulty, leaderboard) {
             leaderboard.sort((a, b) => a - b);
             const top10 = leaderboard.slice(0, 10);
             localStorage.setItem(`sudoku_leaderboard_${difficulty}`, JSON.stringify(top10));
         }
 
-        // 添加新的时间记录
+        // 添加新的时间记录（完整保留）
         function addTimeRecord(difficulty, time) {
             let leaderboard = loadLeaderboard(difficulty);
             leaderboard.push(time);
@@ -932,7 +932,7 @@
             return leaderboard.indexOf(time) + 1;
         }
 
-        // 显示排名表
+        // 显示排名表（完整保留时间显示）
         function displayLeaderboard(difficulty) {
             const leaderboard = loadLeaderboard(difficulty);
             leaderboardContent.innerHTML = '';
@@ -959,7 +959,7 @@
             });
         }
 
-        // 开始新游戏
+        // 开始新游戏（完整保留计时重置）
         function newGame() {
             const confirmed = confirm('确定要开始新游戏吗？');
             if (!confirmed) return;
@@ -988,7 +988,7 @@
             displayLeaderboard(difficulty);
         }
 
-        // 检查答案
+        // 检查答案（完整保留完成时间显示）
         function checkAnswer() {
             if (gameCompleted || isPaused || !gameStarted) {
                 statusElement.textContent = '请先开始游戏！';
@@ -1044,7 +1044,7 @@
                 const rank = addTimeRecord(difficulty, elapsedTime);
                 displayLeaderboard(difficulty);
                 
-                statusElement.textContent = `🎉 完成！排名：第${rank}名！`;
+                statusElement.textContent = `🎉 完成！用时：${formatTime(elapsedTime)}，排名：第${rank}名！`;
             } else {
                 statusElement.textContent = '目前没有错误，继续加油！';
             }
@@ -1112,7 +1112,7 @@
             }
         }
 
-        // 重置当前游戏
+        // 重置当前游戏（完整保留计时重置）
         function resetGame() {
             if (!gameStarted) {
                 statusElement.textContent = '请先开始游戏！';
