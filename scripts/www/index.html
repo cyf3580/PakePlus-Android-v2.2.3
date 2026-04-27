@@ -117,14 +117,6 @@
             flex-shrink: 0;
         }
         
-        #timer {
-            font-size: clamp(1.1rem, 5vw, 1.4rem);
-            font-weight: bold;
-            color: #facc15;
-            margin-bottom: 4px;
-            font-variant-numeric: tabular-nums;
-        }
-        
         #status {
             height: clamp(18px, 4vh, 22px);
             margin-bottom: clamp(8px, 2vh, 12px);
@@ -137,6 +129,20 @@
         .board-container {
             position: relative;
             margin-bottom: clamp(8px, 2vh, 12px);
+            /* 左对齐，容纳左上角计时器 */
+            width: min(92vw, 380px);
+        }
+
+        /* 核心修改：棋盘外左上角计时器 */
+        #timer {
+            position: absolute;
+            top: -30px;
+            left: 0;
+            font-size: clamp(1.1rem, 5vw, 1.4rem);
+            font-weight: bold;
+            color: #facc15;
+            font-variant-numeric: tabular-nums;
+            margin: 0;
         }
         
         #sudokuBoard {
@@ -144,12 +150,13 @@
             grid-template-columns: repeat(9, 1fr);
             grid-template-rows: repeat(9, 1fr);
             border: 2px solid #fff;
-            width: min(92vw, 380px);
+            width: 100%;
             height: min(92vw, 380px);
             max-width: 380px;
             max-height: 380px;
             border-radius: 4px;
             overflow: hidden;
+            margin-top: 10px;
         }
         
         .cell {
@@ -435,8 +442,8 @@
             }
             
             #timer {
+                top: -36px;
                 font-size: 1.5rem;
-                margin-bottom: 8px;
             }
             
             #status {
@@ -523,10 +530,11 @@
     
     <div class="game-container">
         <div class="main-area">
-            <div id="timer">00:00</div>
             <div id="status"></div>
             
             <div class="board-container">
+                <!-- 计时器：棋盘边框外 左上角 -->
+                <div id="timer">00:00</div>
                 <div id="sudokuBoard"></div>
                 
                 <div id="pauseOverlay">
