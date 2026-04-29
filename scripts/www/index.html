@@ -126,11 +126,27 @@
             outline: none;
         }
 
-        .btn-blue { background-color: #2563eb; border-color: #3b82f6; }
-        .btn-purple { background-color: #9333ea; border-color: #a855f7; }
-        .btn-green { background-color: #16a34a; border-color: #22c55e; }
-        .btn-yellow { background-color: #ca8a04; border-color: #eab308; color: #fff; }
-        .btn-red { background-color: #dc2626; border-color: #ef4444; }
+        .btn-blue {
+            background-color: #2563eb;
+            border-color: #3b82f6;
+        }
+        .btn-purple {
+            background-color: #9333ea;
+            border-color: #a855f7;
+        }
+        .btn-green {
+            background-color: #16a34a;
+            border-color: #22c55e;
+        }
+        .btn-yellow {
+            background-color: #ca8a04;
+            border-color: #eab308;
+            color: #fff;
+        }
+        .btn-red {
+            background-color: #dc2626;
+            border-color: #ef4444;
+        }
 
         .game-container {
             display: flex;
@@ -206,7 +222,6 @@
             background-color: #000;
         }
 
-        /* 标准3×3宫格分隔线 */
         .cell.col2,
         .cell.col5 {
             border-right: 2px solid #fff;
@@ -239,21 +254,39 @@
             line-height: 1;
         }
 
-        .cell.initial { color: #ffffff; }
-        .cell.user { color: #6b9bd1; }
-        .cell.error { color: #d16b6b; animation: errorPulse 1.5s ease-in-out infinite; }
-        @keyframes errorPulse {
-            0%, 100% { color: #d16b6b; }
-            50% { color: #f87171; }
+        .cell.initial {
+            color: #ffffff;
         }
-        .cell.correct { color: #6bd18b; }
+        .cell.user {
+            color: #6b9bd1;
+        }
+        .cell.error {
+            color: #d16b6b;
+            animation: errorPulse 1.5s ease-in-out infinite;
+        }
+        @keyframes errorPulse {
+            0%,
+            100% {
+                color: #d16b6b;
+            }
+            50% {
+                color: #f87171;
+            }
+        }
+        .cell.correct {
+            color: #6bd18b;
+        }
         .cell.selected {
             background-color: #1e3a8a;
             z-index: 2;
             box-shadow: inset 0 0 0 2px #60a5fa;
         }
-        .cell.highlight { background-color: rgba(30, 64, 175, 0.25); }
-        .cell.same-number-highlight { background-color: rgba(107, 209, 139, 0.22); }
+        .cell.highlight {
+            background-color: rgba(30, 64, 175, 0.25);
+        }
+        .cell.same-number-highlight {
+            background-color: rgba(107, 209, 139, 0.22);
+        }
 
         #pauseOverlay {
             position: absolute;
@@ -408,8 +441,12 @@
             min-width: 24px;
         }
 
-        .rank-item.top3 .rank { color: #facc15; }
-        .rank-item.top3 { background-color: rgba(250, 204, 21, 0.06); }
+        .rank-item.top3 .rank {
+            color: #facc15;
+        }
+        .rank-item.top3 {
+            background-color: rgba(250, 204, 21, 0.06);
+        }
 
         .instructions {
             margin-top: 4px;
@@ -422,11 +459,19 @@
             padding: 0 8px;
         }
 
-        .instructions .highlight { color: #facc15; font-weight: bold; }
+        .instructions .highlight {
+            color: #facc15;
+            font-weight: bold;
+        }
 
         @keyframes celebrateGlow {
-            0%, 100% { box-shadow: 0 0 0 2px #fff, 0 0 20px rgba(107, 209, 139, 0.3); }
-            50% { box-shadow: 0 0 0 3px #6bd18b, 0 0 40px rgba(107, 209, 139, 0.6); }
+            0%,
+            100% {
+                box-shadow: 0 0 0 2px #fff, 0 0 20px rgba(107, 209, 139, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 0 3px #6bd18b, 0 0 40px rgba(107, 209, 139, 0.6);
+            }
         }
         .board-container.celebrating {
             animation: celebrateGlow 1s ease-in-out 3;
@@ -549,6 +594,153 @@
             let totalPausedDuration = 0;
             let gameStarted = false;
 
+            // ========== 音效与震动系统 ==========
+            let audioContext = null;
+
+            function ensureAudioContext() {
+                if (!audioContext) {
+                    try {
+                        audioContext = new(window.AudioContext || window.webkitAudioContext)();
+                    } catch (e) {
+                        audioContext = null;
+                        return null;
+                    }
+                }
+                if (audioContext && audioContext.state === 'suspended') {
+                    audioContext.resume().catch(() => {});
+                }
+                return audioContext;
+            }
+
+            function playTone(frequency, duration, type = 'sine', gainValue = 0.18) {
+                const ctx = ensureAudioContext();
+                if (!ctx) return;
+                try {
+                    const now = ctx.currentTime;
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(frequency, now);
+                    gain.gain.setValueAtTime(gainValue, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + duration + 0.01);
+                } catch (e) {
+                    // 静默处理音效播放失败
+                }
+            }
+
+            function playSweepTone(startFreq, endFreq, duration, type = 'sine', gainValue = 0.18) {
+                const ctx = ensureAudioContext();
+                if (!ctx) return;
+                try {
+                    const now = ctx.currentTime;
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(startFreq, now);
+                    osc.frequency.linearRampToValueAtTime(endFreq, now + duration);
+                    gain.gain.setValueAtTime(gainValue, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + duration + 0.01);
+                } catch (e) {
+                    // 静默处理
+                }
+            }
+
+            function vibrate(pattern) {
+                try {
+                    if (navigator.vibrate) {
+                        navigator.vibrate(pattern);
+                    }
+                } catch (e) {
+                    // 静默处理震动失败
+                }
+            }
+
+            // 各类音效函数
+            function sfxClick() { playTone(660, 0.04, 'sine', 0.14);
+                vibrate(8); }
+
+            function sfxInput() { playTone(520, 0.07, 'sine', 0.16);
+                vibrate(12); }
+
+            function sfxCandidate() { playTone(950, 0.03, 'sine', 0.09);
+                vibrate(5); }
+
+            function sfxError() { playTone(180, 0.22, 'square', 0.22);
+                vibrate([25, 28, 25]); }
+
+            function sfxSuccess() {
+                const ctx = ensureAudioContext();
+                if (!ctx) return;
+                try {
+                    const now = ctx.currentTime;
+                    const notes = [420, 530, 680];
+                    notes.forEach((freq, i) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sine';
+                        const t = now + i * 0.08;
+                        osc.frequency.setValueAtTime(freq, t);
+                        gain.gain.setValueAtTime(0.18, t);
+                        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(t);
+                        osc.stop(t + 0.13);
+                    });
+                } catch (e) {}
+                vibrate([40, 40, 40, 40, 80]);
+            }
+
+            function sfxHint() { playTone(1050, 0.08, 'triangle', 0.17);
+                vibrate(15); }
+
+            function sfxDelete() { playTone(280, 0.035, 'sine', 0.11);
+                vibrate(6); }
+
+            function sfxClear() { playTone(700, 0.06, 'triangle', 0.15);
+                vibrate(20); }
+
+            function sfxPause() { playSweepTone(420, 200, 0.14, 'sine', 0.16);
+                vibrate(10); }
+
+            function sfxResume() { playSweepTone(220, 440, 0.14, 'sine', 0.16);
+                vibrate(10); }
+
+            function sfxNewGame() {
+                const ctx = ensureAudioContext();
+                if (!ctx) return;
+                try {
+                    const now = ctx.currentTime;
+                    [520, 680].forEach((freq, i) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sine';
+                        const t = now + i * 0.07;
+                        osc.frequency.setValueAtTime(freq, t);
+                        gain.gain.setValueAtTime(0.16, t);
+                        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.10);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(t);
+                        osc.stop(t + 0.11);
+                    });
+                } catch (e) {}
+                vibrate(20);
+            }
+
+            function sfxReset() { playTone(380, 0.06, 'triangle', 0.14);
+                vibrate(14); }
+
+            // ========== 音效系统结束 ==========
+
             function initBoard() {
                 boardElement.innerHTML = '';
                 for (let i = 0; i < 9; i++) {
@@ -566,6 +758,7 @@
                                 statusElement.textContent = '请先点击"新游戏"按钮开始游戏';
                                 return;
                             }
+                            sfxClick();
                             selectCell(this);
                         });
 
@@ -666,8 +859,10 @@
             }
 
             function isValid(boardArr, row, col, num) {
-                for (let i = 0; i < 9; i++) if (boardArr[row][i] === num) return false;
-                for (let i = 0; i < 9; i++) if (boardArr[i][col] === num) return false;
+                for (let i = 0; i < 9; i++)
+                    if (boardArr[row][i] === num) return false;
+                for (let i = 0; i < 9; i++)
+                    if (boardArr[i][col] === num) return false;
                 const boxRow = Math.floor(row / 3) * 3;
                 const boxCol = Math.floor(col / 3) * 3;
                 for (let i = boxRow; i < boxRow + 3; i++)
@@ -716,7 +911,7 @@
 
             function generateSolution() {
                 const boardArr = Array(9).fill().map(() => Array(9).fill(0));
-                const nums = [1,2,3,4,5,6,7,8,9];
+                const nums = [1, 2, 3, 4, 5, 6, 7, 8, 9];
                 for (let i = 0; i < 9; i++) {
                     const idx = Math.floor(Math.random() * nums.length);
                     boardArr[0][i] = nums.splice(idx, 1)[0];
@@ -728,12 +923,15 @@
             function generateUniqueSudoku(difficulty) {
                 const fullBoard = generateSolution();
                 const puzzle = fullBoard.map(row => [...row]);
-                const cellsToRemove = { easy:36, medium:41, hard:46, expert:51, master:56, grandmaster:61 }[difficulty];
+                const cellsToRemove = { easy: 36, medium: 41, hard: 46, expert: 51, master: 56, grandmaster: 61 } [
+                    difficulty
+                ];
                 let removed = 0;
                 const positions = [];
-                for (let i = 0; i < 9; i++) for (let j = 0; j < 9; j++) positions.push([i,j]);
-                for (let i = positions.length-1; i > 0; i--) {
-                    const j = Math.floor(Math.random()*(i+1));
+                for (let i = 0; i < 9; i++)
+                    for (let j = 0; j < 9; j++) positions.push([i, j]);
+                for (let i = positions.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
                     [positions[i], positions[j]] = [positions[j], positions[i]];
                 }
                 for (const [row, col] of positions) {
@@ -747,7 +945,8 @@
             }
 
             function formatTime(seconds) {
-                const m = Math.floor(seconds/60), s = seconds%60;
+                const m = Math.floor(seconds / 60),
+                    s = seconds % 60;
                 return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
             }
 
@@ -766,7 +965,8 @@
             }
 
             function stopTimer() {
-                if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+                if (timerInterval) { clearInterval(timerInterval);
+                    timerInterval = null; }
             }
 
             function newGame() {
@@ -790,128 +990,160 @@
                 clearAllHighlights();
                 startTimer();
                 displayLeaderboard(difficulty);
+                sfxNewGame();
             }
 
             function checkAnswer() {
-                if (gameCompleted || isPaused || !gameStarted) { statusElement.textContent='请先开始游戏！'; return; }
-                let errors = 0, completed = true, hasCandidates = false;
-                for (let i=0;i<9;i++) for (let j=0;j<9;j++) if (board[i][j].candidates.length>0) hasCandidates = true;
-                if (hasCandidates) { statusElement.textContent='存在候选数字，请先输入确定数字！'; return; }
+                if (gameCompleted || isPaused || !gameStarted) { statusElement.textContent = '请先开始游戏！';
+                    return; }
+                let errors = 0,
+                    completed = true,
+                    hasCandidates = false;
+                for (let i = 0; i < 9; i++)
+                    for (let j = 0; j < 9; j++)
+                        if (board[i][j].candidates.length > 0) hasCandidates = true;
+                if (hasCandidates) { statusElement.textContent = '存在候选数字，请先输入确定数字！';
+                    return; }
                 const cells = document.querySelectorAll('.cell');
-                for (let i=0;i<9;i++) {
-                    for (let j=0;j<9;j++) {
-                        const cell = cells[i*9+j];
+                for (let i = 0; i < 9; i++) {
+                    for (let j = 0; j < 9; j++) {
+                        const cell = cells[i * 9 + j];
                         const userVal = board[i][j].value;
                         const correct = solution[i][j];
-                        cell.classList.remove('error','correct');
+                        cell.classList.remove('error', 'correct');
                         if (userVal === 0) completed = false;
-                        else if (userVal !== correct) { cell.classList.add('error'); errors++; }
-                        else if (!initialBoard[i][j]) cell.classList.add('correct');
+                        else if (userVal !== correct) { cell.classList.add('error');
+                            errors++; } else if (!initialBoard[i][j]) cell.classList.add('correct');
                     }
                 }
-                if (errors>0) statusElement.textContent = `发现 ${errors} 个错误，请修正！`;
-                else if (completed) {
+                if (errors > 0) {
+                    statusElement.textContent = `发现 ${errors} 个错误，请修正！`;
+                    sfxError();
+                } else if (completed) {
                     gameCompleted = true;
                     stopTimer();
                     const diff = difficultySelect.value;
                     const rank = addTimeRecord(diff, elapsedTime);
                     displayLeaderboard(diff);
                     boardContainer.classList.add('celebrating');
-                    setTimeout(()=>boardContainer.classList.remove('celebrating'),3000);
-                    statusElement.textContent = `🎉 恭喜你！成功完成数独！用时：${formatTime(elapsedTime)}，排名：第${rank}名！`;
+                    setTimeout(() => boardContainer.classList.remove('celebrating'), 3000);
+                    statusElement.textContent =
+                        `🎉 恭喜你！成功完成数独！用时：${formatTime(elapsedTime)}，排名：第${rank}名！`;
                     clearAllHighlights();
+                    sfxSuccess();
                 } else statusElement.textContent = '目前没有错误，继续加油！';
             }
 
             function giveHint() {
-                if (!gameStarted) { statusElement.textContent='请先开始游戏！'; return; }
-                if (!selectedCell || gameCompleted || isPaused) { statusElement.textContent='请先选择一个空格子！'; return; }
-                const row = parseInt(selectedCell.dataset.row), col = parseInt(selectedCell.dataset.col);
-                if (initialBoard[row][col]!==0) { statusElement.textContent='不能修改初始数字！'; return; }
+                if (!gameStarted) { statusElement.textContent = '请先开始游戏！';
+                    return; }
+                if (!selectedCell || gameCompleted || isPaused) { statusElement.textContent = '请先选择一个空格子！';
+                    sfxError(); return; }
+                const row = parseInt(selectedCell.dataset.row),
+                    col = parseInt(selectedCell.dataset.col);
+                if (initialBoard[row][col] !== 0) { statusElement.textContent = '不能修改初始数字！';
+                    sfxError(); return; }
                 board[row][col].value = solution[row][col];
                 board[row][col].candidates = [];
                 fillCell(selectedCell, board[row][col], false);
                 selectedCell.classList.add('correct');
                 statusElement.textContent = '已填入正确数字！';
                 selectCell(selectedCell, true);
+                sfxHint();
             }
 
             function clearErrors() {
-                if (gameCompleted || isPaused || !gameStarted) { statusElement.textContent='请先开始游戏！'; return; }
+                if (gameCompleted || isPaused || !gameStarted) { statusElement.textContent = '请先开始游戏！';
+                    return; }
                 let cleared = 0;
                 const cells = document.querySelectorAll('.cell');
-                for (let i=0;i<9;i++) {
-                    for (let j=0;j<9;j++) {
-                        if ((board[i][j].value>0 && board[i][j].value!==solution[i][j]) || board[i][j].candidates.length>0) {
+                for (let i = 0; i < 9; i++) {
+                    for (let j = 0; j < 9; j++) {
+                        if ((board[i][j].value > 0 && board[i][j].value !== solution[i][j]) || board[i][j].candidates
+                            .length > 0) {
                             board[i][j].value = 0;
                             board[i][j].candidates = [];
-                            const cell = cells[i*9+j];
+                            const cell = cells[i * 9 + j];
                             fillCell(cell, board[i][j], false);
-                            cell.classList.remove('error','user');
+                            cell.classList.remove('error', 'user');
                             cleared++;
                         }
                     }
                 }
-                statusElement.textContent = cleared>0 ? `已清除 ${cleared} 个错误和候选数字！` : '没有发现错误或候选数字！';
-                if (cleared>0 && selectedCell) selectCell(selectedCell, true);
+                statusElement.textContent = cleared > 0 ? `已清除 ${cleared} 个错误和候选数字！` :
+                    '没有发现错误或候选数字！';
+                if (cleared > 0) {
+                    sfxClear();
+                    if (selectedCell) selectCell(selectedCell, true);
+                }
             }
 
             function resetGame() {
-                if (!gameStarted) { statusElement.textContent='请先开始游戏！'; return; }
-                if (gameCompleted) { alert('游戏已完成，请开始新游戏。'); return; }
+                if (!gameStarted) { statusElement.textContent = '请先开始游戏！';
+                    return; }
+                if (gameCompleted) { alert('游戏已完成，请开始新游戏。');
+                    return; }
                 if (!confirm('确定要重置当前游戏吗？\n所有输入将被清除，计时器将重新开始。')) return;
-                board = initialBoard.map(row => row.map(v => ({ value:v, candidates:[] })));
+                board = initialBoard.map(row => row.map(v => ({ value: v, candidates: [] })));
                 updateBoard();
                 statusElement.textContent = '游戏已重置！';
                 clearAllHighlights();
                 startTimer();
+                sfxReset();
             }
 
             function handleNumberInput(num) {
                 if (!selectedCell || gameCompleted || isPaused || !gameStarted) return;
-                const row = parseInt(selectedCell.dataset.row), col = parseInt(selectedCell.dataset.col);
-                if (initialBoard[row][col]!==0) { statusElement.textContent='不能修改初始数字！'; return; }
+                const row = parseInt(selectedCell.dataset.row),
+                    col = parseInt(selectedCell.dataset.col);
+                if (initialBoard[row][col] !== 0) { statusElement.textContent = '不能修改初始数字！';
+                    sfxError(); return; }
                 board[row][col].value = num;
                 board[row][col].candidates = [];
-                selectedCell.classList.remove('user','error','correct');
+                selectedCell.classList.remove('user', 'error', 'correct');
                 fillCell(selectedCell, board[row][col], false);
                 selectedCell.classList.add('user');
                 selectCell(selectedCell, true);
+                sfxInput();
             }
 
             function handleCandidateInput(num) {
                 if (!selectedCell || gameCompleted || isPaused || !gameStarted) return;
-                const row = parseInt(selectedCell.dataset.row), col = parseInt(selectedCell.dataset.col);
-                if (initialBoard[row][col]!==0) { statusElement.textContent='不能修改初始数字！'; return; }
+                const row = parseInt(selectedCell.dataset.row),
+                    col = parseInt(selectedCell.dataset.col);
+                if (initialBoard[row][col] !== 0) { statusElement.textContent = '不能修改初始数字！';
+                    sfxError(); return; }
                 if (board[row][col].value !== 0) board[row][col].value = 0;
                 const idx = board[row][col].candidates.indexOf(num);
-                if (idx > -1) board[row][col].candidates.splice(idx,1);
-                else { board[row][col].candidates.push(num); board[row][col].candidates.sort((a,b)=>a-b); }
-                selectedCell.classList.remove('user','error','correct');
+                if (idx > -1) board[row][col].candidates.splice(idx, 1);
+                else { board[row][col].candidates.push(num);
+                    board[row][col].candidates.sort((a, b) => a - b); }
+                selectedCell.classList.remove('user', 'error', 'correct');
                 fillCell(selectedCell, board[row][col], false);
                 selectCell(selectedCell, true);
+                sfxCandidate();
             }
 
             function loadLeaderboard(difficulty) {
                 try {
                     const data = localStorage.getItem(`sudoku_unique_leaderboard_${difficulty}`);
                     return data ? JSON.parse(data) : [];
-                } catch(e) { return []; }
+                } catch (e) { return []; }
             }
 
             function saveLeaderboard(difficulty, arr) {
                 try {
-                    arr.sort((a,b) => a-b);
-                    localStorage.setItem(`sudoku_unique_leaderboard_${difficulty}`, JSON.stringify(arr.slice(0,10)));
-                } catch(e) {}
+                    arr.sort((a, b) => a - b);
+                    localStorage.setItem(`sudoku_unique_leaderboard_${difficulty}`, JSON.stringify(arr.slice(0, 10)));
+                } catch (e) {}
             }
 
             function addTimeRecord(difficulty, time) {
                 let records = loadLeaderboard(difficulty);
                 records.push(time);
                 saveLeaderboard(difficulty, records);
-                records.sort((a,b)=>a-b);
-                return records.indexOf(time)+1;
+                records.sort((a, b) => a - b);
+                return records.indexOf(time) + 1;
             }
 
             function displayLeaderboard(difficulty) {
@@ -946,6 +1178,7 @@
                 pauseGameBtn.textContent = '已暂停';
                 pauseGameBtn.disabled = true;
                 statusElement.textContent = '游戏已暂停，点击"继续游戏"或按空格键恢复';
+                sfxPause();
             });
             resumeGameBtn.addEventListener('click', () => {
                 if (!isPaused) return;
@@ -954,6 +1187,7 @@
                 pauseGameBtn.textContent = '暂停';
                 pauseGameBtn.disabled = false;
                 statusElement.textContent = '游戏继续！';
+                sfxResume();
             });
             checkAnswerBtn.addEventListener('click', checkAnswer);
             hintBtn.addEventListener('click', giveHint);
@@ -962,16 +1196,20 @@
 
             numButtons.forEach(btn => {
                 btn.addEventListener('click', function(e) {
-                    e.preventDefault(); e.stopPropagation();
-                    if (!gameStarted) { statusElement.textContent='请先点击"新游戏"按钮开始游戏'; return; }
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!gameStarted) { statusElement.textContent = '请先点击"新游戏"按钮开始游戏';
+                        return; }
                     handleNumberInput(parseInt(this.textContent));
                 });
             });
 
             candidateButtons.forEach(btn => {
                 btn.addEventListener('click', function(e) {
-                    e.preventDefault(); e.stopPropagation();
-                    if (!gameStarted) { statusElement.textContent='请先点击"新游戏"按钮开始游戏'; return; }
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!gameStarted) { statusElement.textContent = '请先点击"新游戏"按钮开始游戏';
+                        return; }
                     handleCandidateInput(parseInt(this.textContent));
                 });
             });
@@ -979,25 +1217,44 @@
             document.addEventListener('keydown', function(e) {
                 if (e.key === ' ' || e.code === 'Space') {
                     e.preventDefault();
-                    if (!gameStarted) { statusElement.textContent='请先开始游戏！'; return; }
-                    isPaused ? (isPaused = false, pauseOverlay.style.display = 'none', pauseGameBtn.textContent = '暂停', pauseGameBtn.disabled = false, statusElement.textContent = '游戏继续！') : 
-                              (isPaused = true, pauseOverlay.style.display = 'flex', pauseGameBtn.textContent = '已暂停', pauseGameBtn.disabled = true, statusElement.textContent = '游戏已暂停');
+                    if (!gameStarted) { statusElement.textContent = '请先开始游戏！';
+                        return; }
+                    if (isPaused) {
+                        isPaused = false;
+                        pauseOverlay.style.display = 'none';
+                        pauseGameBtn.textContent = '暂停';
+                        pauseGameBtn.disabled = false;
+                        statusElement.textContent = '游戏继续！';
+                        sfxResume();
+                    } else {
+                        isPaused = true;
+                        pauseOverlay.style.display = 'flex';
+                        pauseGameBtn.textContent = '已暂停';
+                        pauseGameBtn.disabled = true;
+                        statusElement.textContent = '游戏已暂停';
+                        sfxPause();
+                    }
                     return;
                 }
                 if (!gameStarted) return;
-                if (e.key>='1' && e.key<='9') {
+                if (e.key >= '1' && e.key <= '9') {
                     e.preventDefault();
                     handleNumberInput(parseInt(e.key));
-                } else if (e.key==='Backspace'||e.key==='Delete') {
+                } else if (e.key === 'Backspace' || e.key === 'Delete') {
                     e.preventDefault();
                     if (!selectedCell) return;
-                    const row = parseInt(selectedCell.dataset.row), col = parseInt(selectedCell.dataset.col);
-                    if (initialBoard[row][col]!==0) return;
+                    const row = parseInt(selectedCell.dataset.row),
+                        col = parseInt(selectedCell.dataset.col);
+                    if (initialBoard[row][col] !== 0) {
+                        sfxError();
+                        return;
+                    }
                     if (board[row][col].value !== 0) board[row][col].value = 0;
                     else board[row][col].candidates = [];
                     fillCell(selectedCell, board[row][col], false);
-                    selectedCell.classList.remove('user','error','correct');
+                    selectedCell.classList.remove('user', 'error', 'correct');
                     selectCell(selectedCell, true);
+                    sfxDelete();
                 }
             });
 
